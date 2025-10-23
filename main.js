@@ -115,6 +115,9 @@ class WebGLApp {
         this.keys = {};
         this.c_key_pressed = false; 
 
+        this.finSwayAngle = 0.0;    
+        this.tailSwayAngle = 0.0;   
+
         window.addEventListener('keydown', (e) => { 
             this.keys[e.key] = true; 
             const gameKeys = ['Tab', 'Control', 'w', 'a', 's', 'd', 'c', ' '];
@@ -354,9 +357,26 @@ class WebGLApp {
                 this.modelZRotation = Math.sin(this.idleSwayAngle) * swayAmount;
 
                 if (this.autoAnimTimer >= 10.0) {
-                    this.autoAnimState = 'moving'; 
+                    this.autoAnimState = 'dizzy'; 
                     this.autoAnimTimer = 0.0;
                     this.modelZRotation = 0.0; 
+                }
+                break;
+
+            case 'dizzy':
+                this.autoAnimTimer += deltaTime;
+                const dizzyDuration = 3.0; 
+                const dizzyTilt = -Math.PI / 4.0; 
+
+                this.modelXRotation = dizzyTilt; 
+
+                const spinSpeed = 4.0; 
+                this.modelYRotation = this.autoAnimTimer * spinSpeed; 
+
+                if (this.autoAnimTimer >= dizzyDuration) {
+                    this.autoAnimState = 'moving'; 
+                    this.autoAnimTimer = 0.0;
+                    this.modelXRotation = 0.0; 
                 }
                 break;
         }
@@ -383,6 +403,12 @@ class WebGLApp {
                 this.modelXRotation = -phase * Math.PI * 2.0; 
             }
         }
+
+        const finSwaySpeed = 6.0; 
+        const tailSwaySpeed = 4.0; 
+        
+        this.finSwayAngle += finSwaySpeed * deltaTime;
+        this.tailSwayAngle += tailSwaySpeed * deltaTime;
 
         for (let i = this.bubbles.length - 1; i >= 0; i--) {
             let b = this.bubbles[i];
@@ -476,11 +502,20 @@ class WebGLApp {
         mat4.rotateY(rootModelMatrix, rootModelMatrix, this.modelYRotation);
         mat4.rotateX(rootModelMatrix, rootModelMatrix, this.modelXRotation);
         mat4.rotateZ(rootModelMatrix, rootModelMatrix, this.modelZRotation); 
-        
-        this.head.draw(gl, programInfo, rootModelMatrix);
-        this.body.draw(gl, programInfo, rootModelMatrix);
-        this.fin.draw(gl, programInfo, rootModelMatrix);
 
+        let headMatrix = mat4.clone(rootModelMatrix);
+        if (this.autoAnimState === 'idling') {
+             mat4.rotateZ(headMatrix, headMatrix, this.modelZRotation); 
+        }
+        this.head.draw(gl, programInfo, headMatrix);
+        this.fin.draw(gl, programInfo, rootModelMatrix, this.finSwayAngle);
+        let bodyMatrix = mat4.clone(rootModelMatrix);
+        if (this.autoAnimState !== 'dizzy') {
+            const tailSwayAmount = 0.3; // 0.3 radian (sekitar 17 derajat)
+            let tailSway = Math.cos(this.tailSwayAngle) * tailSwayAmount;
+            mat4.rotateY(bodyMatrix, bodyMatrix, tailSway); 
+        }
+        this.body.draw(gl, programInfo, bodyMatrix);
         for (const bubble of this.bubbles) {
             let bubbleMatrix = mat4.create();
             mat4.translate(bubbleMatrix, bubbleMatrix, bubble.position);
