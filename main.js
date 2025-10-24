@@ -28,27 +28,47 @@ class WebGLApp {
         };
 
         this.colors = {
+            // Horsea Colors
             head: [137/255, 207/255, 240/255, 1.0], 
             snout: [137/255, 207/255, 240/255, 1.0],
             snoutTip: [137/255, 207/255, 240/255, 1.0], 
             snoutTop: [0.2, 0.2, 0.2, 1.0],
             eyeWhite: [1.0, 1.0, 1.0, 1.0],
-            eyeIris: [227/255, 66/255, 52/255, 1.0],
+            eyeIris: [227/255, 66/255, 52/255, 1.0], 
             eyePupil: [0.0, 0.0, 0.0, 1.0],
             headSpike: [137/255, 207/255, 240/255, 1.0],
-            belly: [255/255, 253/255, 208/255, 1.0], // Krem
-            fin: [255/255, 253/255, 208/255, 1.0], // Krem
-            seaFloor: [210/255, 180/255, 140/255, 1.0], // Pasir (Tan)
-            rock: [128/255, 128/255, 128/255, 1.0],   // Abu-abu
-            seaweed: [34/255, 139/255, 34/255, 1.0],   // Hijau tua
-            shell: [255/255, 248/255, 220/255, 1.0],    // Putih gading
-            bubble: [173/255, 216/255, 230/255, 1.0]   // Biru muda (solid)
+            belly: [255/255, 253/255, 208/255, 1.0], 
+            fin: [255/255, 253/255, 208/255, 1.0], 
+            
+            // Environment Colors
+            seaFloor: [210/255, 180/255, 140/255, 1.0], 
+            rock: [128/255, 128/255, 128/255, 1.0],   
+            seaweed: [34/255, 139/255, 34/255, 1.0],   
+            shell: [255/255, 248/255, 220/255, 1.0],    
+            bubble: [173/255, 216/255, 230/255, 1.0],   
+
+            // Kingdra Colors
+            kingdraBlue: [0.32, 0.58, 0.78, 1.0],
+            kingdraYellow: [0.96, 0.84, 0.44, 1.0],
+            kingdraFinWhite: [0.9, 0.88, 0.8, 1.0],
+            
+            // Seadra Colors
+            seadraBlue: [0.1, 0.4, 0.8, 1.0], 
+            seadraBelly: [0.9, 0.85, 0.7, 1.0] 
         };
 
+        //model horsea
         this.head = new Head(this.gl, this.colors);
         this.body = new Body(this.gl, this.colors);
         this.fin = new Fin(this.gl, this.colors);
 
+        //model kingdra
+        this.kingdra = new KingdraModel(this.gl, this.colors);
+
+        //model seadra
+        this.seadra = new SeadraModel(this.gl, this.colors);
+
+        //environment
         this.seaFloor = new SeaFloor(this.gl, this.colors);
         this.rockPrefab = new Rock(this.gl, this.colors);
         this.seaweedPrefab = new Seaweed(this.gl, this.colors);
@@ -98,7 +118,7 @@ class WebGLApp {
         this.lastTime = 0;
 
         this.baseFloatHeight = 1.0; 
-        this.modelPosition = [0, this.baseFloatHeight, 0];
+        this.modelPosition = [0, this.baseFloatHeight, 0]; // Posisi Horsea
 
         this.modelYRotation = 0.0;
         this.modelXRotation = 0.0;
@@ -220,21 +240,6 @@ class WebGLApp {
     }
 
     isColliding(newX, newZ, currentHorseaY) {
-        const horseaBottom = currentHorseaY + this.horseaBottomLocalY;
-        for (const rock of this.rockColliders) {
-            const distX = newX - rock.x;
-            const distZ = newZ - rock.z;
-            const distanceSquared = (distX * distX) + (distZ * distZ);
-            const totalRadius = this.horseRadius + rock.radius;
-            const totalRadiusSquared = totalRadius * totalRadius;
-            if (distanceSquared < totalRadiusSquared) {
-                if (horseaBottom > rock.height) {
-                    continue; 
-                } else {
-                    return true; 
-                }
-            }
-        }
         return false; 
     }
 
@@ -277,7 +282,7 @@ class WebGLApp {
             }
         }
         
-        //animasi
+        //animasi horsea
         switch (this.autoAnimState) {
             
             case 'moving':
@@ -381,6 +386,7 @@ class WebGLApp {
                 break;
         }
 
+        //jump & flip horsea
         const jumpDuration = 0.6; const jumpHeight = 1.2;
         if (this.isJumping) {
             this.jumpTimer += deltaTime;
@@ -404,12 +410,14 @@ class WebGLApp {
             }
         }
 
+        //gerakan passive horsea
         const finSwaySpeed = 6.0; 
         const tailSwaySpeed = 4.0; 
         
         this.finSwayAngle += finSwaySpeed * deltaTime;
         this.tailSwayAngle += tailSwaySpeed * deltaTime;
 
+        //update bubble
         for (let i = this.bubbles.length - 1; i >= 0; i--) {
             let b = this.bubbles[i];
             b.lifetime -= deltaTime;
@@ -451,13 +459,12 @@ class WebGLApp {
 
         gl.useProgram(programInfo.program);
 
-        //lighting
+        //setup camera & lighting
         const fov = 45 * Math.PI / 180;
         const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
         const zNear = 0.1; const zFar = 100.0;
         const projectionMatrix = mat4.perspective(fov, aspect, zNear, zFar);
         
-        //mode freecam dan fixed
         let viewMatrix;
         if (this.cameraMode === 'free') {
             let target = vec3.add(this.camera.eye, this.camera.front);
@@ -474,6 +481,7 @@ class WebGLApp {
         const lightDir = vec3.normalize([-0.5, 0.5, 1.0]);
         gl.uniform3fv(programInfo.uniformLocations.lightDirection, lightDir);
         
+        //gambar environment
         this.seaFloor.draw(gl, programInfo, mat4.create());
         for (const p of this.rockPositions) {
             let matrix = mat4.create();
@@ -497,6 +505,7 @@ class WebGLApp {
             this.shellPrefab.draw(gl, programInfo, matrix);
         }
 
+        //gambar horsea
         let rootModelMatrix = mat4.create();
         mat4.translate(rootModelMatrix, rootModelMatrix, this.modelPosition);
         mat4.rotateY(rootModelMatrix, rootModelMatrix, this.modelYRotation);
@@ -511,15 +520,32 @@ class WebGLApp {
         this.fin.draw(gl, programInfo, rootModelMatrix, this.finSwayAngle);
         let bodyMatrix = mat4.clone(rootModelMatrix);
         if (this.autoAnimState !== 'dizzy') {
-            const tailSwayAmount = 0.3; // 0.3 radian (sekitar 17 derajat)
+            const tailSwayAmount = 0.3; 
             let tailSway = Math.cos(this.tailSwayAngle) * tailSwayAmount;
             mat4.rotateY(bodyMatrix, bodyMatrix, tailSway); 
         }
         this.body.draw(gl, programInfo, bodyMatrix);
+
+        //gambar kingdra
+        let kingdraRootMatrix = mat4.create();
+        mat4.translate(kingdraRootMatrix, kingdraRootMatrix, [-4.0, this.baseFloatHeight + 0.5, 0.0]); 
+        mat4.scale(kingdraRootMatrix, kingdraRootMatrix, [0.5, 0.5, 0.5]); 
+        mat4.rotateY(kingdraRootMatrix, kingdraRootMatrix, 0.5); 
+        this.kingdra.draw(gl, programInfo, kingdraRootMatrix, this.lastTime);
+        
+        //gambar seadra
+        let seadraRootMatrix = mat4.create();
+        mat4.translate(seadraRootMatrix, seadraRootMatrix, [9.0, this.baseFloatHeight + 0.3, 2.0]); 
+        mat4.scale(seadraRootMatrix, seadraRootMatrix, [0.15, 0.15, 0.15]); 
+        mat4.rotateY(seadraRootMatrix, seadraRootMatrix, -0.5); 
+        const deltaTime = this.lastTime - (this.previousRenderTime || 0); 
+        this.seadra.draw(gl, programInfo, seadraRootMatrix, this.lastTime, deltaTime);
+        this.previousRenderTime = this.lastTime;
+
+        //bubble
         for (const bubble of this.bubbles) {
             let bubbleMatrix = mat4.create();
             mat4.translate(bubbleMatrix, bubbleMatrix, bubble.position);
-
             const scale = bubble.currentScale;
             mat4.scale(bubbleMatrix, bubbleMatrix, [scale, scale, scale]);
             drawShape(gl, programInfo, this.bubblePrefab, bubbleMatrix, this.colors.bubble);
